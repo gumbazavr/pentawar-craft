@@ -55,9 +55,10 @@ h1,h2,h3{font-family:Cinzel,Georgia,serif;margin:0}
 .seg{display:inline-flex;border:1px solid var(--line2);border-radius:9px;overflow:hidden;background:var(--panel2)}
 .seg button{appearance:none;border:0;background:transparent;color:var(--muted);font:inherit;font-weight:600;font-size:13px;letter-spacing:.4px;padding:7px 13px;cursor:pointer}
 .seg button.on{background:var(--brand);color:#fff}
-.tabseg{width:100%;margin-bottom:2px}
-.tabseg button{flex:1;padding:9px 13px;font-family:Cinzel;font-weight:700;letter-spacing:1px;font-size:13px;text-transform:uppercase}
+.tierseg{flex:1}
+.tierseg button{flex:1;font-family:Cinzel;font-weight:700;letter-spacing:.5px}
 .qbar{display:flex;align-items:center;gap:9px;margin-top:11px}
+.qbar:first-child{margin-top:0}
 .qbar .qlbl{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;flex:none}
 .qseg{flex:1}
 .qseg button{flex:1}
@@ -157,8 +158,9 @@ h1,h2,h3{font-family:Cinzel,Georgia,serif;margin:0}
   <div class="card">
     <div class="ch"><h2 id="catTitle">Каталог</h2><span class="cnt" id="catCnt"></span></div>
     <div class="pad">
-      <div class="viewbar">
-        <div class="seg tabseg"><button id="tCraft" class="on">Крафт</button><button id="tUpgrade">Апгрейд</button></div>
+      <div class="qbar">
+        <span class="qlbl" id="tierLbl">Тир</span>
+        <div class="seg tierseg"><button data-tier="all" class="on">Все</button><button data-tier="I">I</button><button data-tier="II">II</button><button data-tier="III">III</button><button data-tier="IV">IV</button></div>
       </div>
       <input class="search" id="search" type="text" autocomplete="off">
       <div class="viewbar">
@@ -51059,7 +51061,7 @@ var I18N={
     armor:"Броня",weapon:"Оружие",jewelry:"Бижутерия",other:"Прочее",heavy:"Тяжёлая",light:"Лёгкая",magic:"Магическая",
     total:"Итого",adena:"адена",copied:"Список скопирован",added:"Добавлено деталей: ",allIn:"Все детали комплекта уже в плане",
     cleared:"План очищен",grade:"грейд",chance:"шанс",craftList:"Список крафта (PentaWar)",craftItems:"Крафт:",baseRes:"Базовые ресурсы:",
-    tabCraft:"Крафт",tabUpgrade:"Апгрейд",gradePfx:"Грейд ",allCat:"Все",
+    tierLabel:"Тир",tierAll:"Все",gradePfx:"Грейд ",allCat:"Все",
     qLabel:"Качество",qBase:"Обычное",qRare:"Редкое",qAnc:"Древнее",
     qNote:"Учтена стоимость улучшения качества",noQ:"нет данных об улучшении",
     price:"цена/шт",foot:'Данные вики <a href="https://pentawar.net/wiki" target="_blank" rel="noopener">pentawar.net</a>. Крафт — грейд I, апгрейд — грейды II–IV. Количества на 1 успешный крафт.'},
@@ -51072,7 +51074,7 @@ var I18N={
     armor:"Armor",weapon:"Weapons",jewelry:"Jewelry",other:"Other",heavy:"Heavy",light:"Light",magic:"Magic",
     total:"Total",adena:"adena",copied:"List copied",added:"Pieces added: ",allIn:"All set pieces already in plan",
     cleared:"Plan cleared",grade:"grade",chance:"chance",craftList:"Craft list (PentaWar)",craftItems:"Craft:",baseRes:"Base resources:",
-    tabCraft:"Craft",tabUpgrade:"Upgrade",gradePfx:"Grade ",allCat:"All",
+    tierLabel:"Tier",tierAll:"All",gradePfx:"Grade ",allCat:"All",
     qLabel:"Quality",qBase:"Normal",qRare:"Rare",qAnc:"Ancient",
     qNote:"Includes quality-upgrade cost",noQ:"no upgrade data",
     price:"price/ea",foot:'Data from <a href="https://pentawar.net/wiki" target="_blank" rel="noopener">pentawar.net</a> wiki. Craft = grade I, Upgrade = grades II–IV. Amounts per 1 successful craft.'}
@@ -51083,7 +51085,7 @@ function load(k,d){try{var v=localStorage.getItem(k);return v==null?d:JSON.parse
 function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
 var state={
   lang:load("pw_lang","ru"), theme:load("pw_theme",null), q:"",
-  view:load("pw_view","tree"), tab:load("pw_tab","craft"), nav:{l1:null,l2:null}, quality:load("pw_quality","base"),
+  view:load("pw_view","tree"), tier:load("pw_tier","all"), nav:{l1:null,l2:null}, quality:load("pw_quality","base"),
   cart:load("pw_cart",{}), prices:load("pw_prices",{}), showPrices:load("pw_showprices",false),
   fclass:null
 };
@@ -51147,7 +51149,8 @@ function navNode(kind,val,label,count,left){
     '<span class="nc">'+count+'</span><span class="arr">›</span></div>';
 }
 function pool(){
-  var arr=ITEMS.filter(function(it){ return state.tab==="upgrade" ? it.up : !it.up; });
+  var arr=ITEMS.slice();
+  if(state.tier!=="all") arr=arr.filter(function(it){ return it.g===state.tier; });
   if(state.q){ var q=state.q.toLowerCase(); arr=arr.filter(function(it){return L(it.n).toLowerCase().indexOf(q)>=0 || (it.n.en&&it.n.en.toLowerCase().indexOf(q)>=0);}); }
   return arr;
 }
@@ -51165,9 +51168,9 @@ function add(id){ state.cart[id]=(state.cart[id]||0)+1; persistCart(); renderCat
 // ---- render catalog ----
 function crumbLabel(lvl){
   var n=state.nav;
-  if(state.tab==="upgrade"){ return lvl==="l1"?acLabel(n.l1):(T("gradePfx")+n.l2); }
   return lvl==="l1"?typeLabel(n.l1):acLabel(n.l2);
 }
+var GRADERANK={"I":1,"II":2,"III":3,"IV":4};
 function renderCrumbs(){
   if(state.view!=="tree"||state.q){ crumbsEl.innerHTML=""; return; }
   var h='<span class="crumb" data-crumb="root">'+esc(T("root"))+'</span>';
@@ -51178,7 +51181,7 @@ function renderCrumbs(){
 function renderSetLeaf(p3){
   var h="", bySet={}, noset=[];
   p3.forEach(function(it){ if(it.setId&&SETS[it.setId]) (bySet[it.setId]=bySet[it.setId]||[]).push(it); else noset.push(it); });
-  var sids=Object.keys(bySet).sort(function(a,b){return L(SETS[a].n)<L(SETS[b].n)?-1:1;});
+  var sids=Object.keys(bySet).sort(function(a,b){var ga=GRADERANK[SETS[a].g]||9,gb=GRADERANK[SETS[b].g]||9; return ga-gb||(L(SETS[a].n)<L(SETS[b].n)?-1:1);});
   function slotSort(a,b){var ia=SLOTORDER.indexOf(a.slot),ib=SLOTORDER.indexOf(b.slot);return (ia<0?99:ia)-(ib<0?99:ib);}
   sids.forEach(function(sid){
     var s=SETS[sid], arr=bySet[sid].sort(slotSort);
@@ -51212,29 +51215,17 @@ function renderWeaponLeaf(p3){
 }
 function renderTree(){
   var p=pool(), h="", cnt=0, n=state.nav;
-  if(state.tab==="upgrade"){
-    if(!n.l1){
-      ACORDER.forEach(function(a){ var arr=p.filter(function(it){return it.ac===a;}); if(!arr.length)return; cnt+=arr.length;
-        h+=navNode("l1",a,acLabel(a),arr.length,'<span class="pill '+a+'">'+acLabel(a).charAt(0)+'</span>'); });
-    } else if(!n.l2){
-      GRADEORDER.forEach(function(g){ var arr=p.filter(function(it){return it.ac===n.l1&&it.g===g;}); if(!arr.length)return; cnt+=arr.length;
-        h+=navNode("l2",g,T("gradePfx")+g,arr.length,'<span class="gbadge g'+g+'">'+g+'</span>'); });
-    } else {
-      var p3=p.filter(function(it){return it.ac===n.l1&&it.g===n.l2;}); cnt=p3.length; h+=renderSetLeaf(p3);
-    }
+  if(!n.l1){
+    TYPEORDER.forEach(function(t){ var arr=p.filter(function(it){return it.t===t;}); if(!arr.length)return; cnt+=arr.length;
+      var ic=t==="a"?"🛡":t==="w"?"⚔":t==="j"?"💍":"⚙";
+      h+=navNode("l1",t,typeLabel(t),arr.length,'<span class="ni">'+ic+'</span>'); });
+  } else if(n.l1==="a"&&!n.l2){
+    ACORDER.forEach(function(a){ var arr=p.filter(function(it){return it.t==="a"&&it.ac===a;}); if(!arr.length)return; cnt+=arr.length;
+      h+=navNode("l2",a,acLabel(a),arr.length,'<span class="pill '+a+'">'+acLabel(a).charAt(0)+'</span>'); });
+  } else if(n.l1==="w"){
+    var pw=p.filter(function(it){return it.t==="w";}); cnt=pw.length; h+=renderWeaponLeaf(pw);
   } else {
-    if(!n.l1){
-      TYPEORDER.forEach(function(t){ var arr=p.filter(function(it){return it.t===t;}); if(!arr.length)return; cnt+=arr.length;
-        var ic=t==="a"?"🛡":t==="w"?"⚔":t==="j"?"💍":"⚙";
-        h+=navNode("l1",t,typeLabel(t),arr.length,'<span class="ni">'+ic+'</span>'); });
-    } else if(n.l1==="a"&&!n.l2){
-      ACORDER.forEach(function(a){ var arr=p.filter(function(it){return it.t==="a"&&it.ac===a;}); if(!arr.length)return; cnt+=arr.length;
-        h+=navNode("l2",a,acLabel(a),arr.length,'<span class="pill '+a+'">'+acLabel(a).charAt(0)+'</span>'); });
-    } else if(n.l1==="w"){
-      var pw=p.filter(function(it){return it.t==="w";}); cnt=pw.length; h+=renderWeaponLeaf(pw);
-    } else {
-      var p3c=p.filter(function(it){ return n.l1==="a"?(it.t==="a"&&it.ac===n.l2):(it.t===n.l1); }); cnt=p3c.length; h+=renderSetLeaf(p3c);
-    }
+    var p3c=p.filter(function(it){ return n.l1==="a"?(it.t==="a"&&it.ac===n.l2):(it.t===n.l1); }); cnt=p3c.length; h+=renderSetLeaf(p3c);
   }
   listEl.innerHTML=h||'<div class="empty">—</div>';
   document.getElementById("catCnt").textContent=cnt+" "+T("pos");
@@ -51252,9 +51243,7 @@ function renderFlat(){
 function renderChips(){
   if(state.view!=="filters"){ chipsEl.hidden=true; return; }
   chipsEl.hidden=false;
-  var opts=state.tab==="upgrade"
-    ? [["heavy",T("heavy")],["light",T("light")],["magic",T("magic")]]
-    : [["heavy",T("heavy")],["light",T("light")],["magic",T("magic")],["w",T("weapon")],["j",T("jewelry")],["o",T("other")]];
+  var opts=[["heavy",T("heavy")],["light",T("light")],["magic",T("magic")],["w",T("weapon")],["j",T("jewelry")],["o",T("other")]];
   var h='<button class="chip'+(state.fclass?"":" on")+'" data-fc="">'+T("allCat")+'</button>';
   opts.forEach(function(o){ h+='<button class="chip'+(state.fclass===o[0]?" on":"")+'" data-fc="'+o[0]+'">'+esc(o[1])+'</button>'; });
   chipsEl.innerHTML=h;
@@ -51380,11 +51369,9 @@ function setView(v){ state.view=v; save("pw_view",v);
   document.getElementById("vTree").classList.toggle("on",v==="tree");
   document.getElementById("vFilters").classList.toggle("on",v==="filters");
   renderCatalog(); }
-document.getElementById("tCraft").addEventListener("click",function(){ setTab("craft"); });
-document.getElementById("tUpgrade").addEventListener("click",function(){ setTab("upgrade"); });
-function setTab(t){ if(state.tab!==t){ state.tab=t; save("pw_tab",t); state.nav={l1:null,l2:null}; state.fclass=null; }
-  document.getElementById("tCraft").classList.toggle("on",t==="craft");
-  document.getElementById("tUpgrade").classList.toggle("on",t==="upgrade");
+document.querySelectorAll(".tierseg button").forEach(function(b){ b.addEventListener("click",function(){ setTier(b.getAttribute("data-tier")); }); });
+function setTier(t){ if(state.tier!==t){ state.tier=t; save("pw_tier",t); state.nav={l1:null,l2:null}; state.fclass=null; }
+  document.querySelectorAll(".tierseg button").forEach(function(b){ b.classList.toggle("on",b.getAttribute("data-tier")===t); });
   renderCatalog(); listEl.scrollTop=0; }
 document.querySelectorAll(".qseg button").forEach(function(b){ b.addEventListener("click",function(){ setQuality(b.getAttribute("data-q")); }); });
 function setQuality(q){ state.quality=q; save("pw_quality",q);
@@ -51413,8 +51400,8 @@ function applyLang(){
   document.getElementById("search").placeholder=T("search");
   document.getElementById("vTree").textContent=T("tree");
   document.getElementById("vFilters").textContent=T("filters");
-  document.getElementById("tCraft").textContent=T("tabCraft");
-  document.getElementById("tUpgrade").textContent=T("tabUpgrade");
+  document.getElementById("tierLbl").textContent=T("tierLabel");
+  var ta=document.querySelector('.tierseg button[data-tier="all"]'); if(ta)ta.textContent=T("tierAll");
   document.getElementById("qLbl").textContent=T("qLabel");
   var qb=document.querySelector('.qseg button[data-q="base"]'); if(qb)qb.textContent=T("qBase");
   var qr=document.querySelector('.qseg button[data-q="rare"]'); if(qr)qr.textContent=T("qRare");
@@ -51430,6 +51417,6 @@ function applyLang(){
 // ---- init ----
 if(state.theme)document.documentElement.setAttribute("data-theme",state.theme);
 document.getElementById("priceToggle").checked=state.showPrices;
-setTab(state.tab); setView(state.view); setQuality(state.quality); syncThemeBtn(); applyLang();
+setTier(state.tier); setView(state.view); setQuality(state.quality); syncThemeBtn(); applyLang();
 try{ if(TG){ TG.ready&&TG.ready(); TG.expand&&TG.expand(); } }catch(e){}
 </script>
