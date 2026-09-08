@@ -48680,11 +48680,10 @@ function statLine(it){
 }
 function rowHtml(it){
   var inplan=state.cart[it.id]>0;
-  var meta=[]; if(it.slot&&it.slot!=="NONE")meta.push('<span class="tag">'+esc(slotName(it.slot))+'</span>');
-  var sl=statLine(it); if(sl)meta.push(esc(sl));
-  meta.push(T("chance")+" "+it.chance+"%");
+  var tag=(it.slot&&it.slot!=="NONE")?'<span class="tag">'+esc(slotName(it.slot))+'</span>':"";
+  var txt=[]; var sl=statLine(it); if(sl)txt.push(esc(sl)); txt.push(T("chance")+" "+it.chance+"%");
   return '<div class="row" data-id="'+it.id+'">'+icoImg(it.ic,"ic")+
-    '<div class="info"><div class="nm">'+esc(L(it.n))+'</div><div class="meta">'+meta.join("")+'</div></div>'+
+    '<div class="info"><div class="nm">'+esc(L(it.n))+'</div><div class="meta">'+tag+txt.join(" · ")+'</div></div>'+
     '<button class="addbtn'+(inplan?" inplan":"")+'" data-add="'+it.id+'">'+(inplan?"✓":"+")+'</button></div>';
 }
 function navNode(kind,val,label,count,left){
